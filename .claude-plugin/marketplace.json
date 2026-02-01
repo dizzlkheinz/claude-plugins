@@ -1,0 +1,24 @@
+{
+  "name": "kdizzl-plugins",
+  "owner": {
+    "name": "kdizzl"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for ynab-mcpb and other projects",
+    "version": "1.0.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "release",
+      "source": "./release",
+      "description": "Automate the ynab-mcpb release process: bump versions, update changelog, review README, run tests, tag, and push.",
+      "version": "1.0.0",
+      "author": {
+        "name": "kdizzl"
+      },
+      "keywords": ["release", "versioning", "changelog", "ynab-mcpb"],
+      "category": "workflow"
+    }
+  ]
+}

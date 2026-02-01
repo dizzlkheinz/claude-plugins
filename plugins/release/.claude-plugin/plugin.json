@@ -1,0 +1,5 @@
+{
+  "name": "release",
+  "description": "Automate the ynab-mcpb release process: bump versions, update changelog, review README, run tests, tag, and push.",
+  "version": "1.0.0"
+}
