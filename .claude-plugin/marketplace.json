@@ -4,7 +4,7 @@
     "name": "kdizzl"
   },
   "metadata": {
-    "description": "Claude Code plugins for ynab-mcpb and other projects",
+    "description": "Claude Code plugins for workflow automation",
     "version": "1.0.0",
     "pluginRoot": "./plugins"
   },
@@ -12,12 +12,23 @@
     {
       "name": "release",
       "source": "./plugins/release",
-      "description": "Automate the ynab-mcpb release process: bump versions, update changelog, review README, run tests, tag, and push.",
+      "description": "Automate the release process for any project: bump versions, update changelog, review README, run tests, tag, and push.",
       "version": "1.0.0",
       "author": {
         "name": "kdizzl"
       },
-      "keywords": ["release", "versioning", "changelog", "ynab-mcpb"],
+      "keywords": ["release", "versioning", "changelog"],
+      "category": "workflow"
+    },
+    {
+      "name": "ai-council",
+      "source": "./plugins/ai-council",
+      "description": "Multi-AI consultation system that orchestrates discussions between Claude, Gemini CLI, Codex CLI, and Perplexity API.",
+      "version": "1.0.0",
+      "author": {
+        "name": "kdizzl"
+      },
+      "keywords": ["ai", "consultation", "multi-agent", "council"],
       "category": "workflow"
     }
   ]
