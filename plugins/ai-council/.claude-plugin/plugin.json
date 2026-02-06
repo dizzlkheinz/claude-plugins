@@ -1,5 +1,5 @@
 {
   "name": "ai-council",
   "description": "Multi-AI consultation system that orchestrates discussions between Claude, Gemini CLI, Codex CLI, and Perplexity API.",
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
