@@ -1,5 +1,5 @@
 {
   "name": "release",
   "description": "Automate the release process for any project: bump versions, update changelog, review README, run tests, tag, and push.",
-  "version": "1.0.1"
+  "version": "1.0.2"
 }

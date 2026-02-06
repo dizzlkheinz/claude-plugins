@@ -20,7 +20,7 @@ claude-plugins/
 │   └── ai-council/                    # Multi-AI consultation plugin
 │       ├── .claude-plugin/plugin.json
 │       ├── scripts/consult.py
-│       └── skills/ai-council/SKILL.md
+│       └── skills/consult/SKILL.md
 ```
 
 **Key Pattern**: Each plugin lives in `/plugins/<name>/` and is registered in `marketplace.json`. Skills expose their behavior through `SKILL.md` files with YAML frontmatter defining triggers.
