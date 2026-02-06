@@ -11,14 +11,16 @@ This is a **Claude Code Plugin Marketplace** - a distribution system for reusabl
 ```
 claude-plugins/
 ├── .claude-plugin/marketplace.json    # Central plugin registry
+├── CLAUDE.md
+├── README.md
 ├── plugins/
 │   ├── release/                       # Release automation plugin
 │   │   ├── .claude-plugin/plugin.json
 │   │   └── skills/release/SKILL.md
 │   └── ai-council/                    # Multi-AI consultation plugin
-│       ├── SKILL.md
-│       └── scripts/consult.py
-└── README.md
+│       ├── .claude-plugin/plugin.json
+│       ├── scripts/consult.py
+│       └── skills/ai-council/SKILL.md
 ```
 
 **Key Pattern**: Each plugin lives in `/plugins/<name>/` and is registered in `marketplace.json`. Skills expose their behavior through `SKILL.md` files with YAML frontmatter defining triggers.
