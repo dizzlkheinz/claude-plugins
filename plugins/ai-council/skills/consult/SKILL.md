@@ -1,9 +1,10 @@
 ---
 name: consult
 description: |
-  Multi-AI consultation system that orchestrates discussions between Claude, Gemini CLI, Codex CLI, and Perplexity CLI.
+  Multi-AI consultation system that orchestrates discussions between Claude, Gemini CLI, Codex CLI, and Perplexity API.
   Use when the user says "/consult", "consult", "ask the council", "get AI opinions", "multi-AI discussion",
-  "what do the AIs think", or wants to gather perspectives from multiple AI systems on a problem.
+  "what do the AIs think", "compare AI opinions", "get a second opinion", "debate this",
+  or wants to gather perspectives from multiple AI systems on a problem.
   Supports round-robin discussions with iterative feedback between AI agents.
 ---
 
@@ -22,15 +23,16 @@ Orchestrate collaborative discussions between AI CLI tools: Claude, Gemini, Code
 
 ### Perplexity Setup
 
-Use the Perplexity Sonar API directly:
+Use the Perplexity Chat Completions API directly:
 ```bash
-curl -s "https://api.perplexity.ai/v1/responses" \
+curl -s "https://api.perplexity.ai/chat/completions" \
   -H "Authorization: Bearer $PERPLEXITY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"preset":"pro-search","input":"PROMPT"}' | jq -r '.output'
+  -d '{"model":"sonar","messages":[{"role":"user","content":"PROMPT"}]}' \
+  | jq -r '.choices[0].message.content'
 ```
 
-Presets: `pro-search` (deep search), `sonar` (fast), `sonar-pro` (balanced)
+Models: `sonar` (fast), `sonar-pro` (balanced), `sonar-deep-research` (deep search)
 
 ## Consultation Workflow
 
@@ -40,7 +42,7 @@ Ask the user what question or problem they want the council to discuss.
 
 ### 2. Select Participants
 
-Default: all three AIs. User may exclude specific agents or include only certain ones.
+Default: all four AIs. User may exclude specific agents or include only certain ones.
 
 ### 3. Run Round-Robin Discussion
 

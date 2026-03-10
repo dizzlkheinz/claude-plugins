@@ -44,26 +44,29 @@ def check_perplexity_available() -> bool:
 
 
 def query_perplexity_api(prompt: str, timeout: int = 120) -> tuple[str, str, Optional[str]]:
-    """Query Perplexity via API."""
+    """Query Perplexity via Chat Completions API."""
     api_key = os.environ.get("PERPLEXITY_API_KEY")
     if not api_key:
         return ("Perplexity", "", "PERPLEXITY_API_KEY not set")
 
-    url = "https://api.perplexity.ai/v1/responses"
+    url = "https://api.perplexity.ai/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     data = json.dumps({
-        "preset": "sonar",
-        "input": prompt
+        "model": "sonar",
+        "messages": [{"role": "user", "content": prompt}]
     }).encode("utf-8")
 
     try:
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=timeout) as response:
             result = json.loads(response.read().decode("utf-8"))
-            output = result.get("output", str(result))
+            try:
+                output = result["choices"][0]["message"]["content"]
+            except (KeyError, IndexError):
+                output = str(result)
             return ("Perplexity", output, None)
     except urllib.error.HTTPError as e:
         return ("Perplexity", "", f"HTTP {e.code}: {e.reason}")
@@ -191,7 +194,8 @@ def run_consultation(
         "unavailable": [k for k, v in agents.items() if not v.available]
     }
 
-    all_responses: dict[str, str] = {}
+    # Track responses per round so later rounds can see full history
+    responses_by_round: list[dict[str, str]] = []
 
     for round_num in range(1, rounds + 1):
         round_results = {"round": round_num, "responses": {}, "errors": {}}
@@ -204,12 +208,16 @@ def run_consultation(
                 f"Question: {question}"
             )
         else:
-            prev_formatted = format_previous_responses(all_responses)
+            history_parts = []
+            for i, round_responses in enumerate(responses_by_round, 1):
+                history_parts.append(f"== Round {i} ==")
+                history_parts.append(format_previous_responses(round_responses))
+            full_history = "\n".join(history_parts)
             prompt_template = (
                 "You are participating in a multi-AI consultation. "
-                "Here is the question and responses from the previous round:\n\n"
+                "Here is the question and all responses so far:\n\n"
                 f"Question: {question}\n\n"
-                f"Previous responses:\n{prev_formatted}\n\n"
+                f"Previous responses:\n{full_history}\n\n"
                 "Consider these perspectives. Do you agree, disagree, or have additional insights? "
                 "Be concise (2-3 paragraphs)."
             )
@@ -227,8 +235,8 @@ def run_consultation(
                     round_results["errors"][agent_name] = error
                 else:
                     round_results["responses"][agent_name] = response
-                    all_responses[agent_name] = response
 
+        responses_by_round.append(round_results["responses"])
         results["rounds"].append(round_results)
 
         # Print progress in text mode
@@ -248,7 +256,8 @@ def run_consultation(
 
 def main():
     parser = argparse.ArgumentParser(description="AI Council Consultation")
-    parser.add_argument("question", nargs="?", help="Question to discuss")
+    parser.add_argument("question", nargs="?", help="Question to discuss (positional)")
+    parser.add_argument("--question", "-q", dest="question_flag", help="Question to discuss (flag)")
     parser.add_argument("--agents", "-a", nargs="+", choices=["claude", "gemini", "codex", "perplexity"],
                         help="Which agents to include (default: all)")
     parser.add_argument("--rounds", "-r", type=int, default=2,
@@ -274,11 +283,12 @@ def main():
             print(f"  {key}: {agent.name} [{status}]")
         return
 
-    if not args.question:
-        parser.error("question is required")
+    question = args.question or args.question_flag
+    if not question:
+        parser.error("question is required (pass as positional arg or with -q/--question)")
 
     results = run_consultation(
-        question=args.question,
+        question=question,
         agents=agents,
         selected_agents=args.agents,
         rounds=args.rounds,
