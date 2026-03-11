@@ -56,8 +56,8 @@ Execute consultation rounds where each AI:
 Query each AI independently with the original question:
 
 ```bash
-# Claude
-claude -p "Question: {question}" 2>&1
+# Claude (unset CLAUDECODE to allow nested invocation)
+CLAUDECODE= claude -p "Question: {question}" 2>&1
 
 # Gemini
 gemini -p "Question: {question}" 2>&1
@@ -71,7 +71,7 @@ codex exec "Question: {question}" 2>&1
 Include previous responses in the prompt for each subsequent round:
 
 ```bash
-claude -p "Question: {question}
+CLAUDECODE= claude -p "Question: {question}
 
 Previous responses from other AIs:
 {formatted_previous_responses}
@@ -131,6 +131,7 @@ On reflection, would you change or add anything?
 
 ## Error Handling
 
+- **Claude nested session**: Always unset the `CLAUDECODE` env var before invoking `claude -p` (use `CLAUDECODE= claude -p ...` in Bash, or remove it from the env dict in Python) to avoid the "cannot be launched inside another Claude Code session" error
 - If a CLI is not installed, skip that agent and note it in the output
 - If a CLI times out (>60s), capture partial output and continue
 - If a CLI returns an error, include the error in the synthesis

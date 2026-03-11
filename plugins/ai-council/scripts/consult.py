@@ -125,13 +125,17 @@ def query_agent(agent: AIAgent, prompt: str, timeout: int = 120) -> tuple[str, s
 
     try:
         cmd = agent.command + [prompt]
+        # Remove CLAUDECODE env var to allow nested Claude CLI invocations
+        env = os.environ.copy()
+        env.pop("CLAUDECODE", None)
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
             encoding="utf-8",
-            errors="replace"
+            errors="replace",
+            env=env
         )
 
         output = result.stdout.strip()
