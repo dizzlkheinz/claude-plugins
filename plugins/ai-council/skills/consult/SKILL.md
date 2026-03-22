@@ -129,6 +129,23 @@ Your previous response:
 On reflection, would you change or add anything?
 ```
 
+## Large Prompt Handling
+
+When prompts exceed ~25K characters (e.g., including source code), CLI argument limits are hit (~32KB on Windows). The script automatically switches delivery method per agent:
+
+| Agent      | Small prompt (<25K) | Large prompt (>25K)                          |
+|------------|---------------------|----------------------------------------------|
+| Claude     | `claude -p "..."`   | Pipe via stdin: `subprocess(input=prompt)`   |
+| Gemini     | `gemini -p "..."`   | Pipe via stdin: `subprocess(input=prompt)`   |
+| Codex      | `codex exec "..."`  | Write to temp file, tell codex to read it    |
+| Perplexity | API (no limit)      | API (no limit)                               |
+
+**Gemini stdin**: The `-p` flag is "appended to input on stdin (if any)", so piping works with `gemini -p ""`.
+
+**Codex temp file**: Codex doesn't support stdin. The prompt is written to a cross-platform temp file (via Python `tempfile`), and codex receives a short directive to read it. The temp file is cleaned up after.
+
+**Windows compatibility**: All temp files use Python's `tempfile.NamedTemporaryFile` which resolves to the correct native temp directory on all platforms (avoids `/tmp/` issues on Windows Git Bash).
+
 ## Error Handling
 
 - **Claude nested session**: Always unset the `CLAUDECODE` env var before invoking `claude -p` (use `CLAUDECODE= claude -p ...` in Bash, or remove it from the env dict in Python) to avoid the "cannot be launched inside another Claude Code session" error

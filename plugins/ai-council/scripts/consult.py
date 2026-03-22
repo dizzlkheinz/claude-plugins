@@ -10,11 +10,15 @@ import sys
 import json
 import argparse
 import os
+import tempfile
 import urllib.request
 import urllib.error
 from typing import Optional
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Max characters before switching from CLI arg to stdin/file-based delivery
+PROMPT_SIZE_LIMIT = 25000
 
 
 @dataclass
@@ -106,9 +110,94 @@ def get_agents() -> dict[str, AIAgent]:
     return agents
 
 
-def query_agent(agent: AIAgent, prompt: str, timeout: int = 120) -> tuple[str, str, Optional[str]]:
+def _query_cli_small(agent: AIAgent, prompt: str, env: dict, timeout: int) -> tuple[str, str, Optional[str]]:
+    """Query a CLI agent with the prompt as a direct argument (for small prompts)."""
+    cmd = agent.command + [prompt]
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        encoding="utf-8",
+        errors="replace",
+        env=env
+    )
+    output = result.stdout.strip()
+    if result.returncode != 0 and result.stderr:
+        output += f"\n[stderr: {result.stderr.strip()}]"
+    return (agent.name, output, None)
+
+
+def _query_cli_large(agent: AIAgent, agent_key: str, prompt: str, env: dict, timeout: int) -> tuple[str, str, Optional[str]]:
+    """Query a CLI agent with a large prompt using stdin piping or temp files."""
+    if agent_key == "claude":
+        # Claude: pipe prompt via stdin with -p flag (no argument after -p)
+        result = subprocess.run(
+            ["claude", "-p"],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            encoding="utf-8",
+            errors="replace",
+            env=env
+        )
+    elif agent_key == "gemini":
+        # Gemini: -p "Appended to input on stdin (if any)" — pipe via stdin
+        result = subprocess.run(
+            ["gemini", "-p", ""],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            encoding="utf-8",
+            errors="replace",
+            env=env
+        )
+    elif agent_key == "codex":
+        # Codex: doesn't support stdin. Write prompt to a temp file and
+        # instruct codex to read it, since codex can use its own file tools.
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", prefix="council-prompt-",
+            delete=False, encoding="utf-8"
+        ) as f:
+            f.write(prompt)
+            prompt_path = f.name
+        try:
+            short_directive = (
+                f"Read the file at {prompt_path} for the full prompt and instructions, "
+                f"then respond to what it asks. Be concise (2-3 paragraphs)."
+            )
+            result = subprocess.run(
+                ["codex", "exec", short_directive],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                encoding="utf-8",
+                errors="replace",
+                env=env
+            )
+        finally:
+            try:
+                os.unlink(prompt_path)
+            except OSError:
+                pass
+    else:
+        return (agent.name, "", f"Unknown CLI agent: {agent_key}")
+
+    output = result.stdout.strip()
+    if result.returncode != 0 and result.stderr:
+        output += f"\n[stderr: {result.stderr.strip()}]"
+    return (agent.name, output, None)
+
+
+def query_agent(agent: AIAgent, prompt: str, timeout: int = 120, agent_key: str = "") -> tuple[str, str, Optional[str]]:
     """
     Query an AI agent and return its response.
+
+    Automatically selects the best delivery method based on prompt size:
+    - Small prompts (<25K chars): passed as CLI argument
+    - Large prompts: piped via stdin (Claude, Gemini) or temp file (Codex)
 
     Returns: (agent_name, response, error)
     """
@@ -124,25 +213,14 @@ def query_agent(agent: AIAgent, prompt: str, timeout: int = 120) -> tuple[str, s
         return (agent.name, "", f"Unknown API agent: {agent.name}")
 
     try:
-        cmd = agent.command + [prompt]
         # Remove CLAUDECODE env var to allow nested Claude CLI invocations
         env = os.environ.copy()
         env.pop("CLAUDECODE", None)
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            encoding="utf-8",
-            errors="replace",
-            env=env
-        )
 
-        output = result.stdout.strip()
-        if result.returncode != 0 and result.stderr:
-            output += f"\n[stderr: {result.stderr.strip()}]"
-
-        return (agent.name, output, None)
+        if len(prompt) <= PROMPT_SIZE_LIMIT:
+            return _query_cli_small(agent, prompt, env, timeout)
+        else:
+            return _query_cli_large(agent, agent_key, prompt, env, timeout)
 
     except subprocess.TimeoutExpired:
         return (agent.name, "", f"Timeout after {timeout}s")
@@ -229,7 +307,7 @@ def run_consultation(
         # Query all agents in parallel
         with ThreadPoolExecutor(max_workers=len(available_agents)) as executor:
             futures = {
-                executor.submit(query_agent, agent, prompt_template, timeout): name
+                executor.submit(query_agent, agent, prompt_template, timeout, name): name
                 for name, agent in available_agents.items()
             }
 
